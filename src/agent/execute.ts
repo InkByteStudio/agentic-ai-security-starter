@@ -5,7 +5,10 @@ import { createPromptEnvelope } from "../security/context-builder";
 import { authorizeToolCall, UserContext } from "../security/authorization";
 import { classifyUserIntent } from "../security/risk";
 import { AuditLogger } from "../security/audit";
+import { sha256 } from "../security/context";
+import { sanitizeOutput, sanitizeToolResult } from "../security/output-guard";
 import type { Environment } from "../security/tool-registry";
+import type { ApprovalStore } from "../security/approvals";
 
 export type ExecuteArgs = {
   environment: Environment;
@@ -16,6 +19,7 @@ export type ExecuteArgs = {
   retrievedText?: string;
   modelGateway: ModelGateway;
   auditLogger: AuditLogger;
+  approvalStore?: ApprovalStore;
 };
 
 export async function executeAgentTurn(args: ExecuteArgs) {
@@ -59,6 +63,8 @@ export async function executeAgentTurn(args: ExecuteArgs) {
 
   const plan = await args.modelGateway.generatePlan(prompt);
 
+  plan.assistantMessage = sanitizeOutput(plan.assistantMessage);
+
   await args.auditLogger.log({
     requestId,
     sessionId: args.sessionId,
@@ -74,6 +80,36 @@ export async function executeAgentTurn(args: ExecuteArgs) {
   const toolResults: Array<{ toolName: string; result: unknown }> = [];
 
   for (const toolRequest of plan.toolRequests) {
+    // If an approvalId is provided, validate it against the store
+    if (toolRequest.approvalId && args.approvalStore) {
+      const approval = await args.approvalStore.get(toolRequest.approvalId);
+      if (!approval) {
+        return {
+          status: "denied",
+          message: `Invalid approval ID: ${toolRequest.approvalId}`,
+          reason: "Approval record not found",
+        };
+      }
+      if (approval.status !== "approved") {
+        return {
+          status: "denied",
+          message: `Approval ${toolRequest.approvalId} is ${approval.status}, not approved`,
+          reason: `Approval status: ${approval.status}`,
+        };
+      }
+      const expectedHash = sha256(JSON.stringify({
+        toolName: toolRequest.toolName,
+        args: toolRequest.args,
+      }));
+      if (approval.requestHash !== expectedHash) {
+        return {
+          status: "denied",
+          message: "Approval does not match the current tool request",
+          reason: "Request hash mismatch",
+        };
+      }
+    }
+
     const decision = authorizeToolCall({
       environment: args.environment,
       user: args.user,
@@ -102,14 +138,45 @@ export async function executeAgentTurn(args: ExecuteArgs) {
     }
 
     if (decision.decision === "require-approval") {
+      const approvalId = crypto.randomUUID();
+      if (args.approvalStore) {
+        await args.approvalStore.create({
+          approvalId,
+          requestedByUserId: args.user.userId,
+          approvedByUserId: null,
+          toolName: toolRequest.toolName,
+          toolArgs: toolRequest.args,
+          requestHash: sha256(JSON.stringify({
+            toolName: toolRequest.toolName,
+            args: toolRequest.args,
+          })),
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        });
+
+        await args.auditLogger.log({
+          requestId,
+          sessionId: args.sessionId,
+          userId: args.user.userId,
+          eventType: "approval_created",
+          riskLevel: decision.risk,
+          details: {
+            approvalId,
+            toolName: toolRequest.toolName,
+          },
+        });
+      }
+
       return {
         status: "approval-required",
+        approvalId,
         message: `Approval required before running ${toolRequest.toolName}`,
         reason: decision.reason,
       };
     }
 
-    const result = await executeTool(toolRequest);
+    const rawResult = await executeTool(toolRequest.toolName, decision.parsedArgs);
+    const result = sanitizeToolResult(rawResult);
 
     toolResults.push({
       toolName: toolRequest.toolName,
