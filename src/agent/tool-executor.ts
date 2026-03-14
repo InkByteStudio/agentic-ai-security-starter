@@ -1,15 +1,21 @@
-import { ToolRequest } from "../security/tool-registry";
+import { ToolName, toolRegistry } from "../security/tool-registry";
+import { assertAllowedHost } from "../security/network-policy";
 
-export async function executeTool(request: ToolRequest): Promise<unknown> {
-  const args = request.args as Record<string, unknown>;
+export async function executeTool(toolName: ToolName, args: unknown): Promise<unknown> {
+  const toolDef = toolRegistry[toolName] as { outboundHost?: string };
+  if (toolDef.outboundHost) {
+    assertAllowedHost(toolDef.outboundHost);
+  }
 
-  switch (request.toolName) {
+  const typedArgs = args as Record<string, unknown>;
+
+  switch (toolName) {
     case "searchKnowledgeBase":
       return { articles: ["Refund policy", "Plan change workflow"] };
 
     case "getCustomerProfile":
       return {
-        customerId: args.customerId,
+        customerId: typedArgs.customerId,
         plan: "basic",
         billingStatus: "current",
       };
@@ -24,6 +30,6 @@ export async function executeTool(request: ToolRequest): Promise<unknown> {
       return { success: true, refundId: "rf_12345" };
 
     default:
-      throw new Error(`Tool not implemented: ${request.toolName}`);
+      throw new Error(`Tool not implemented: ${toolName}`);
   }
 }

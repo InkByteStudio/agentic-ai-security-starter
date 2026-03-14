@@ -9,7 +9,7 @@ export type UserContext = {
 };
 
 export type PolicyDecision =
-  | { decision: "allow"; risk: RiskLevel; reason: string }
+  | { decision: "allow"; risk: RiskLevel; reason: string; parsedArgs: unknown }
   | { decision: "require-approval"; risk: RiskLevel; reason: string }
   | { decision: "deny"; risk: RiskLevel; reason: string };
 
@@ -82,5 +82,6 @@ export function authorizeToolCall(args: {
     decision: "allow",
     risk: baseRisk(toolName),
     reason: `${tool.name} allowed for ${args.user.role}`,
+    parsedArgs: parsed.data,
   };
 }

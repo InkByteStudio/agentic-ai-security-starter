@@ -1,4 +1,12 @@
 node_modules/
 dist/
 .env
+.env.local
+.env.*.local
 *.log
+*.pem
+*.key
+.claude/
+.DS_Store
+coverage/
+*.tsbuildinfo

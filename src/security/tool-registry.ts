@@ -12,6 +12,7 @@ export type ToolDefinition<TArgs = unknown> = {
   requiresConfirmation: boolean;
   humanImpacting: boolean;
   argsSchema: z.ZodType<TArgs>;
+  outboundHost?: string;
 };
 
 const SearchKnowledgeBaseArgs = z.object({
@@ -40,7 +41,13 @@ const IssueRefundArgs = z.object({
   reason: z.string().min(5).max(500),
 });
 
-export const toolRegistry = {
+export const toolRegistry: Record<string, ToolDefinition> & {
+  searchKnowledgeBase: ToolDefinition;
+  getCustomerProfile: ToolDefinition;
+  updateCustomerPlan: ToolDefinition;
+  sendTransactionalEmail: ToolDefinition;
+  issueRefund: ToolDefinition;
+} = {
   searchKnowledgeBase: {
     name: "searchKnowledgeBase",
     description: "Read-only search over internal help and policy content.",
@@ -50,6 +57,7 @@ export const toolRegistry = {
     requiresConfirmation: false,
     humanImpacting: false,
     argsSchema: SearchKnowledgeBaseArgs,
+    outboundHost: "https://kb.internal.example",
   },
   getCustomerProfile: {
     name: "getCustomerProfile",
@@ -80,6 +88,7 @@ export const toolRegistry = {
     requiresConfirmation: true,
     humanImpacting: true,
     argsSchema: SendTransactionalEmailArgs,
+    outboundHost: "https://api.internal.example",
   },
   issueRefund: {
     name: "issueRefund",
@@ -90,8 +99,9 @@ export const toolRegistry = {
     requiresConfirmation: true,
     humanImpacting: true,
     argsSchema: IssueRefundArgs,
+    outboundHost: "https://billing.internal.example",
   },
-} as const;
+};
 
 export type ToolName = keyof typeof toolRegistry;
 

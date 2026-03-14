@@ -43,10 +43,12 @@ User Request
 | `src/security/policy-prompt.ts` | System policy prompt (code-controlled, not model-controlled) |
 | `src/security/context-builder.ts` | Prompt envelope builder with source and trust labels |
 | `src/security/authorization.ts` | Per-tool authorization with risk classification |
-| `src/security/approvals.ts` | Approval record types |
+| `src/security/approvals.ts` | Approval record types and in-memory store |
+| `src/security/identity.ts` | User context parsing and environment resolution |
+| `src/security/output-guard.ts` | Output sanitization (secrets, PII redaction) |
 | `src/security/risk.ts` | Intent risk classifier for early detection |
 | `src/security/network-policy.ts` | Outbound host allowlist |
-| `src/security/audit.ts` | Structured audit logger (Pino) |
+| `src/security/audit.ts` | Structured audit logger (Pino, optional PostgreSQL) |
 | `src/agent/model-gateway.ts` | Model gateway interface |
 | `src/agent/tool-executor.ts` | Tool execution stubs (replace with your real integrations) |
 | `src/agent/execute.ts` | Secure execution orchestrator |
@@ -69,6 +71,9 @@ The server starts at `http://localhost:3000`. Send a test request:
 ```bash
 curl -X POST http://localhost:3000/api/agent/execute \
   -H "Content-Type: application/json" \
+  -H "x-user-id: user-123" \
+  -H "x-user-role: support" \
+  -H "x-user-permissions: kb:read,customer:read" \
   -d '{"message": "What is the refund policy?", "sessionId": "test-session"}'
 ```
 
