@@ -95,8 +95,8 @@ npm run inventory
 
 ## Related
 
-- [Tutorial: How to Secure an Agentic AI App](https://inkbytestudio.com/tutorials/secure-agentic-ai-app-guardrails-tool-permissions-audit-logs)
-- [Blog: Agentic AI Security in 2026](https://inkbytestudio.com/blog/agentic-ai-security-2026)
+- [Tutorial: How to Secure an Agentic AI App](https://igotasite4that.com/tutorials/secure-agentic-ai-app-guardrails-tool-permissions-audit-logs)
+- [Blog: Agentic AI Security in 2026](https://igotasite4that.com/blog/agentic-ai-security-2026)
 
 ## License
 
